@@ -5,10 +5,12 @@ namespace Netcorext.Logging.HttpClientLogger;
 
 public class CustomLoggingHttpMessageHandler : DelegatingHandler
 {
+    private readonly CustomLoggingOptions _options;
     private readonly ILogger _logger;
 
-    public CustomLoggingHttpMessageHandler(ILogger logger)
+    public CustomLoggingHttpMessageHandler(CustomLoggingOptions options, ILogger logger)
     {
+        _options = options;
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -23,9 +25,9 @@ public class CustomLoggingHttpMessageHandler : DelegatingHandler
 
         // Not using a scope here because we always expect this to be at the end of the pipeline, thus there's
         // not really anything to surround.
-        Log.RequestStart(_logger, request);
+        Log.RequestStart(_options, _logger, request);
         var response = await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
-        Log.RequestEnd(_logger, response, stopwatch.GetElapsedTime());
+        Log.RequestEnd(_options, _logger, response, stopwatch.GetElapsedTime());
 
         return response;
     }
@@ -34,14 +36,14 @@ public class CustomLoggingHttpMessageHandler : DelegatingHandler
     {
         public static class EventIds
         {
-            public static readonly EventId RequestStart = new EventId(100, "RequestStart");
-            public static readonly EventId RequestEnd = new EventId(101, "RequestEnd");
+            public static readonly EventId RequestStart = new(100, "RequestStart");
+            public static readonly EventId RequestEnd = new(101, "RequestEnd");
 
-            public static readonly EventId RequestHeader = new EventId(102, "RequestHeader");
-            public static readonly EventId ResponseHeader = new EventId(103, "ResponseHeader");
+            public static readonly EventId RequestHeader = new(102, "RequestHeader");
+            public static readonly EventId ResponseHeader = new(103, "ResponseHeader");
 
-            public static readonly EventId RequestContent = new EventId(104, "RequestContent");
-            public static readonly EventId ResponseContent = new EventId(105, "ResponseContent");
+            public static readonly EventId RequestContent = new(104, "RequestContent");
+            public static readonly EventId ResponseContent = new(105, "ResponseContent");
         }
 
         private static readonly Action<ILogger, HttpMethod, Uri, Exception> _requestStart = LoggerMessage.Define<HttpMethod, Uri>(
@@ -54,48 +56,58 @@ public class CustomLoggingHttpMessageHandler : DelegatingHandler
                                                                                                                                               EventIds.RequestEnd,
                                                                                                                                               "Received HTTP response after {ElapsedMilliseconds}ms - {StatusCode}");
 
-        public static void RequestStart(ILogger logger, HttpRequestMessage request)
+        private static readonly Action<ILogger, double, HttpStatusCode, Exception> _requestEndTooSlow = LoggerMessage.Define<double, HttpStatusCode>(
+                                                                                                                                                     LogLevel.Warning,
+                                                                                                                                                     EventIds.RequestEnd,
+                                                                                                                                                     "Received HTTP response too slow, elapsed: {ElapsedMilliseconds}ms - {StatusCode}");
+
+        public static void RequestStart(CustomLoggingOptions options, ILogger logger, HttpRequestMessage request)
         {
             _requestStart(logger, request.Method, request.RequestUri, null);
 
-            if (logger.IsEnabled(LogLevel.Trace))
-            {
+            if (options.LogRequestHeader && logger.IsEnabled(LogLevel.Debug))
                 logger.Log(
-                           LogLevel.Trace,
+                           LogLevel.Debug,
                            EventIds.RequestHeader,
                            new HttpHeadersLogValue(Kind.Request, request.Headers, request.Content?.Headers),
                            null,
                            (state, ex) => state.ToString());
 
+            if (options.LogRequestBody && logger.IsEnabled(LogLevel.Debug))
                 logger.Log(
-                           LogLevel.Trace,
+                           LogLevel.Debug,
                            EventIds.RequestContent,
                            new HttpContentLogValue(Kind.Request, request.Content),
                            null,
                            (state, ex) => state.ToString());
-            }
         }
 
-        public static void RequestEnd(ILogger logger, HttpResponseMessage response, TimeSpan duration)
+        public static void RequestEnd(CustomLoggingOptions options, ILogger logger, HttpResponseMessage response, TimeSpan duration)
         {
-            _requestEnd(logger, duration.TotalMilliseconds, response.StatusCode, null);
-
-            if (logger.IsEnabled(LogLevel.Trace))
+            if (duration.TotalMilliseconds < options.SlowRequestLoggingThreshold)
             {
+                _requestEnd(logger, duration.TotalMilliseconds, response.StatusCode, null);
+            }
+            else
+            {
+                _requestEndTooSlow(logger, duration.TotalMilliseconds, response.StatusCode, null);
+            }
+
+            if (options.LogResponseHeader && logger.IsEnabled(LogLevel.Debug))
                 logger.Log(
-                           LogLevel.Trace,
+                           LogLevel.Debug,
                            EventIds.ResponseHeader,
                            new HttpHeadersLogValue(Kind.Response, response.Headers, response.Content?.Headers),
                            null,
                            (state, ex) => state.ToString());
 
+            if (options.LogResponseBody && logger.IsEnabled(LogLevel.Debug))
                 logger.Log(
-                           LogLevel.Trace,
+                           LogLevel.Debug,
                            EventIds.ResponseContent,
                            new HttpContentLogValue(Kind.Response, response.Content),
                            null,
                            (state, ex) => state.ToString());
-            }
         }
     }
 }

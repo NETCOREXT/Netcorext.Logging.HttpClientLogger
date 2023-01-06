@@ -4,10 +4,12 @@ namespace Netcorext.Logging.HttpClientLogger;
 
 public class CustomLoggingHttpMessageHandlerBuilderFilter : IHttpMessageHandlerBuilderFilter
 {
+    private readonly CustomLoggingOptions _options;
     private readonly ILoggerFactory _loggerFactory;
 
-    public CustomLoggingHttpMessageHandlerBuilderFilter(ILoggerFactory loggerFactory)
+    public CustomLoggingHttpMessageHandlerBuilderFilter(CustomLoggingOptions options, ILoggerFactory loggerFactory)
     {
+        _options = options;
         _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
     }
 
@@ -31,11 +33,11 @@ public class CustomLoggingHttpMessageHandlerBuilderFilter : IHttpMessageHandlerB
                    var innerLogger = _loggerFactory.CreateLogger($"System.Net.Http.HttpClient.{loggerName}.ClientHandler");
 
                    // The 'scope' handler goes first so it can surround everything.
-                   builder.AdditionalHandlers.Insert(0, new CustomLoggingScopeHttpMessageHandler(outerLogger));
+                   builder.AdditionalHandlers.Insert(0, new CustomLoggingScopeHttpMessageHandler(_options, outerLogger));
 
                    // We want this handler to be last so we can log details about the request after
                    // service discovery and security happen.
-                   builder.AdditionalHandlers.Add(new CustomLoggingHttpMessageHandler(innerLogger));
+                   builder.AdditionalHandlers.Add(new CustomLoggingHttpMessageHandler(_options, innerLogger));
                };
     }
 }

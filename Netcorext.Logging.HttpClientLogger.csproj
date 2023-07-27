@@ -1,7 +1,7 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>netstandard2.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <VersionMajor>1</VersionMajor>
     <VersionMinor>0</VersionMinor>
@@ -20,7 +20,16 @@
     <PackageProjectUrl>https://github.com/arenchen/Netcorext.Logging.HttpClientLogger</PackageProjectUrl>
     <RepositoryUrl>https://github.com/arenchen/Netcorext.Logging.HttpClientLogger.git</RepositoryUrl>
     <Description>Log HttpClient Request Body</Description>
+    <OutputType>Library</OutputType>
+    <Title>HttpClient Logger</Title>
+    <Version>1.1.0</Version>
   </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugType>full</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+
 
   <Target Name="IncludeProjectReferences" DependsOnTargets="ResolveReferences">
     <ItemGroup>
@@ -28,5 +37,9 @@
       <BuildOutputInPackage Include="@(ReferenceCopyLocalPaths-&gt;WithMetadataValue('ReferenceSourceTarget', 'ProjectReference'))" />
     </ItemGroup>
   </Target>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Http" Version="7.0.0" />
+  </ItemGroup>
 
 </Project>

@@ -1,4 +1,5 @@
 using System.Net;
+using Microsoft.Extensions.Logging;
 using Netcorext.Logging.HttpClientLogger.Internals;
 
 namespace Netcorext.Logging.HttpClientLogger;

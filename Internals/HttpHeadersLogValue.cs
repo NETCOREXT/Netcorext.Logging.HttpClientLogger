@@ -9,43 +9,46 @@ internal class HttpHeadersLogValue : IReadOnlyList<KeyValuePair<string, object>>
 {
     private readonly Kind _kind;
 
-    private string _formatted;
-    private List<KeyValuePair<string, object>> _values;
+    private string? _formatted;
+    private List<KeyValuePair<string, object>>? _values;
 
-    public HttpHeadersLogValue(Kind kind, HttpHeaders headers, HttpHeaders contentHeaders)
+    public HttpHeadersLogValue(Kind kind, HttpHeaders? headers, HttpHeaders? contentHeaders)
     {
         _kind = kind;
         Headers = headers;
         ContentHeaders = contentHeaders;
     }
 
-    public HttpHeaders Headers { get; }
+    public HttpHeaders? Headers { get; }
 
-    public HttpHeaders ContentHeaders { get; }
+    public HttpHeaders? ContentHeaders { get; }
 
     private List<KeyValuePair<string, object>> Values
     {
         get
         {
-            if (_values == null)
-            {
-                var values = new List<KeyValuePair<string, object>>();
+            if (_values != null)
+                return _values;
 
+            var values = new List<KeyValuePair<string, object>>();
+
+            if (Headers != null)
+            {
                 foreach (var kvp in Headers)
                 {
                     values.Add(new KeyValuePair<string, object>(kvp.Key, StringValuesToString(kvp.Value)));
                 }
-
-                if (ContentHeaders != null)
-                {
-                    foreach (var kvp in ContentHeaders)
-                    {
-                        values.Add(new KeyValuePair<string, object>(kvp.Key, StringValuesToString(kvp.Value)));
-                    }
-                }
-
-                _values = values;
             }
+
+            if (ContentHeaders != null)
+            {
+                foreach (var kvp in ContentHeaders)
+                {
+                    values.Add(new KeyValuePair<string, object>(kvp.Key, StringValuesToString(kvp.Value)));
+                }
+            }
+
+            _values = values;
 
             return _values;
         }
@@ -78,45 +81,34 @@ internal class HttpHeadersLogValue : IReadOnlyList<KeyValuePair<string, object>>
 
     public override string ToString()
     {
-        StringValues sv;
+        if (_formatted != null)
+            return _formatted;
 
-        if (_formatted == null)
+        var builder = new StringBuilder();
+        builder.AppendLine(_kind == Kind.Request ? "Request Headers:" : "Response Headers:");
+
+        for (var i = 0; i < Values.Count; i++)
         {
-            var builder = new StringBuilder();
-            builder.AppendLine(_kind == Kind.Request ? "Request Headers:" : "Response Headers:");
-
-            for (var i = 0; i < Values.Count; i++)
-            {
-                var kvp = Values[i];
-                builder.Append(kvp.Key);
-                builder.Append(": ");
-                builder.Append(kvp.Value);
-
-                // foreach (var value in (IEnumerable<object>)kvp.Value)
-                // {
-                //     builder.Append(value);
-                //     builder.Append(", ");
-                // }
-                //
-                // // Remove the extra ', '
-                // builder.Remove(builder.Length - 2, 2);
-                builder.AppendLine();
-            }
-
-            _formatted = builder.ToString();
+            var kvp = Values[i];
+            builder.Append(kvp.Key);
+            builder.Append(": ");
+            builder.Append(kvp.Value);
+            builder.AppendLine();
         }
+
+        _formatted = builder.ToString();
 
         return _formatted;
     }
 
-    private string StringValuesToString(object values)
+    private static string StringValuesToString(object values)
     {
         return values switch
                {
                    string s => s,
                    StringValues s => s.ToString(),
                    string[] s => string.Join(", ", s),
-                   _ => values.ToString()
+                   _ => values.ToString() ?? string.Empty
                };
     }
 }

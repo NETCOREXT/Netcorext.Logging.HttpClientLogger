@@ -2,9 +2,9 @@ namespace Netcorext.Logging.HttpClientLogger;
 
 public class CustomLoggingOptions
 {
-    public bool LogRequestHeader { get; set; }
-    public bool LogRequestBody { get; set; }
-    public bool LogResponseHeader { get; set; }
-    public bool LogResponseBody { get; set; }
-    public long SlowRequestLoggingThreshold { get; set; } = 2 * 1000;
+    public bool LogRequestHeader { get; set; } = true;
+    public bool LogRequestBody { get; set; } = true;
+    public bool LogResponseHeader { get; set; } = true;
+    public bool LogResponseBody { get; set; } = true;
+    public long SlowRequestLoggingThreshold { get; set; } = 1000;
 }

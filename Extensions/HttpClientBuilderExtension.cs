@@ -10,7 +10,7 @@ public static class HttpClientBuilderExtension
         builder.Services.RemoveAll<IHttpMessageHandlerBuilderFilter>();
         builder.Services.TryAddSingleton<CustomLoggingOptions>();
         builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IHttpMessageHandlerBuilderFilter, CustomLoggingHttpMessageHandlerBuilderFilter>());
-
+        
         return builder;
     }
 

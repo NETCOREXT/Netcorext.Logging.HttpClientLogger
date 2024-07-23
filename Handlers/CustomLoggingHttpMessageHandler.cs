@@ -34,49 +34,32 @@ public class CustomLoggingHttpMessageHandler : DelegatingHandler
 
     private static class Log
     {
-        public static class EventIds
-        {
-            public static readonly EventId RequestStart = new(100, "RequestStart");
-            public static readonly EventId RequestEnd = new(101, "RequestEnd");
+        private static readonly Action<ILogger, HttpMethod, Uri?, Exception?> LogRequestStart = LoggerMessage.Define<HttpMethod, Uri?>(LogLevel.Information,
+                                                                                                                                       LoggerEventIds.RequestStart,
+                                                                                                                                       "Sending HTTP request {HttpMethod} {Uri}");
 
-            public static readonly EventId RequestHeader = new(102, "RequestHeader");
-            public static readonly EventId ResponseHeader = new(103, "ResponseHeader");
+        private static readonly Action<ILogger, double, HttpStatusCode, Exception?> LogRequestEnd = LoggerMessage.Define<double, HttpStatusCode>(LogLevel.Information,
+                                                                                                                                                 LoggerEventIds.RequestEnd,
+                                                                                                                                                 "Received HTTP response after {ElapsedMilliseconds}ms - {StatusCode}");
 
-            public static readonly EventId RequestContent = new(104, "RequestContent");
-            public static readonly EventId ResponseContent = new(105, "ResponseContent");
-        }
-
-        private static readonly Action<ILogger, HttpMethod, Uri, Exception> _requestStart = LoggerMessage.Define<HttpMethod, Uri>(
-                                                                                                                                  LogLevel.Information,
-                                                                                                                                  EventIds.RequestStart,
-                                                                                                                                  "Sending HTTP request {HttpMethod} {Uri}");
-
-        private static readonly Action<ILogger, double, HttpStatusCode, Exception> _requestEnd = LoggerMessage.Define<double, HttpStatusCode>(
-                                                                                                                                              LogLevel.Information,
-                                                                                                                                              EventIds.RequestEnd,
-                                                                                                                                              "Received HTTP response after {ElapsedMilliseconds}ms - {StatusCode}");
-
-        private static readonly Action<ILogger, double, HttpStatusCode, Exception> _requestEndTooSlow = LoggerMessage.Define<double, HttpStatusCode>(
-                                                                                                                                                     LogLevel.Warning,
-                                                                                                                                                     EventIds.RequestEnd,
-                                                                                                                                                     "Received HTTP response too slow, elapsed: {ElapsedMilliseconds}ms - {StatusCode}");
+        private static readonly Action<ILogger, double, HttpStatusCode, Exception?> LogRequestEndTooSlow = LoggerMessage.Define<double, HttpStatusCode>(LogLevel.Warning,
+                                                                                                                                                        LoggerEventIds.RequestEnd,
+                                                                                                                                                        "Received HTTP response too slow, elapsed: {ElapsedMilliseconds}ms - {StatusCode}");
 
         public static void RequestStart(CustomLoggingOptions options, ILogger logger, HttpRequestMessage request)
         {
-            _requestStart(logger, request.Method, request.RequestUri, null);
+            LogRequestStart(logger, request.Method, request.RequestUri, null);
 
-            if (options.LogRequestHeader && logger.IsEnabled(LogLevel.Debug))
-                logger.Log(
-                           LogLevel.Debug,
-                           EventIds.RequestHeader,
+            if (options.LogRequestHeader && logger.IsEnabled(LogLevel.Information))
+                logger.Log(LogLevel.Information,
+                           LoggerEventIds.RequestHeader,
                            new HttpHeadersLogValue(Kind.Request, request.Headers, request.Content?.Headers),
                            null,
                            (state, ex) => state.ToString());
 
-            if (options.LogRequestBody && logger.IsEnabled(LogLevel.Debug))
-                logger.Log(
-                           LogLevel.Debug,
-                           EventIds.RequestContent,
+            if (options.LogRequestBody && logger.IsEnabled(LogLevel.Information))
+                logger.Log(LogLevel.Information,
+                           LoggerEventIds.RequestContent,
                            new HttpContentLogValue(Kind.Request, request.Content),
                            null,
                            (state, ex) => state.ToString());
@@ -86,25 +69,23 @@ public class CustomLoggingHttpMessageHandler : DelegatingHandler
         {
             if (duration.TotalMilliseconds < options.SlowRequestLoggingThreshold)
             {
-                _requestEnd(logger, duration.TotalMilliseconds, response.StatusCode, null);
+                LogRequestEnd(logger, duration.TotalMilliseconds, response.StatusCode, null);
             }
             else
             {
-                _requestEndTooSlow(logger, duration.TotalMilliseconds, response.StatusCode, null);
+                LogRequestEndTooSlow(logger, duration.TotalMilliseconds, response.StatusCode, null);
             }
 
-            if (options.LogResponseHeader && logger.IsEnabled(LogLevel.Debug))
-                logger.Log(
-                           LogLevel.Debug,
-                           EventIds.ResponseHeader,
+            if (options.LogResponseHeader && logger.IsEnabled(LogLevel.Information))
+                logger.Log(LogLevel.Information,
+                           LoggerEventIds.ResponseHeader,
                            new HttpHeadersLogValue(Kind.Response, response.Headers, response.Content?.Headers),
                            null,
                            (state, ex) => state.ToString());
 
             if (options.LogResponseBody && logger.IsEnabled(LogLevel.Debug))
-                logger.Log(
-                           LogLevel.Debug,
-                           EventIds.ResponseContent,
+                logger.Log(LogLevel.Information,
+                           LoggerEventIds.ResponseContent,
                            new HttpContentLogValue(Kind.Response, response.Content),
                            null,
                            (state, ex) => state.ToString());

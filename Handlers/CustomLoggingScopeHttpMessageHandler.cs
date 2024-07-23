@@ -35,57 +35,40 @@ public class CustomLoggingScopeHttpMessageHandler : DelegatingHandler
 
     private static class Log
     {
-        public static class EventIds
-        {
-            public static readonly EventId PipelineStart = new(100, "RequestPipelineStart");
-            public static readonly EventId PipelineEnd = new(101, "RequestPipelineEnd");
+        private static readonly Func<ILogger, HttpMethod, Uri?, IDisposable> LogBeginRequestPipelineScope = LoggerMessage.DefineScope<HttpMethod, Uri?>("HTTP {HttpMethod} {Uri}");
 
-            public static readonly EventId RequestHeader = new(102, "RequestPipelineRequestHeader");
-            public static readonly EventId ResponseHeader = new(103, "RequestPipelineResponseHeader");
+        private static readonly Action<ILogger, HttpMethod, Uri?, Exception?> LogRequestPipelineStart = LoggerMessage.Define<HttpMethod, Uri?>(LogLevel.Information,
+                                                                                                                                               LoggerEventIds.RequestStart,
+                                                                                                                                               "Start processing HTTP request {HttpMethod} {Uri}");
 
-            public static readonly EventId RequestContent = new(104, "RequestPipelineContent");
-            public static readonly EventId ResponseContent = new(105, "ResponsePipelineContent");
-        }
+        private static readonly Action<ILogger, double, HttpStatusCode, Exception?> LogRequestPipelineEnd = LoggerMessage.Define<double, HttpStatusCode>(LogLevel.Information,
+                                                                                                                                                         LoggerEventIds.RequestEnd,
+                                                                                                                                                         "End processing HTTP request after {ElapsedMilliseconds}ms - {StatusCode}");
 
-        private static readonly Func<ILogger, HttpMethod, Uri, IDisposable> _beginRequestPipelineScope = LoggerMessage.DefineScope<HttpMethod, Uri>("HTTP {HttpMethod} {Uri}");
-
-        private static readonly Action<ILogger, HttpMethod, Uri, Exception> _requestPipelineStart = LoggerMessage.Define<HttpMethod, Uri>(
-                                                                                                                                          LogLevel.Information,
-                                                                                                                                          EventIds.PipelineStart,
-                                                                                                                                          "Start processing HTTP request {HttpMethod} {Uri}");
-
-        private static readonly Action<ILogger, double, HttpStatusCode, Exception> _requestPipelineEnd = LoggerMessage.Define<double, HttpStatusCode>(
-                                                                                                                                                      LogLevel.Information,
-                                                                                                                                                      EventIds.PipelineEnd,
-                                                                                                                                                      "End processing HTTP request after {ElapsedMilliseconds}ms - {StatusCode}");
-
-        private static readonly Action<ILogger, double, HttpStatusCode, Exception> _requestPipelineEndTooSlow = LoggerMessage.Define<double, HttpStatusCode>(
-                                                                                                                                                             LogLevel.Warning,
-                                                                                                                                                             EventIds.PipelineEnd,
-                                                                                                                                                             "End processing  HTTP request too slow, elapsed: {ElapsedMilliseconds}ms - {StatusCode}");
+        private static readonly Action<ILogger, double, HttpStatusCode, Exception?> LogRequestPipelineEndTooSlow = LoggerMessage.Define<double, HttpStatusCode>(LogLevel.Warning,
+                                                                                                                                                                LoggerEventIds.RequestEnd,
+                                                                                                                                                                "End processing  HTTP request too slow, elapsed: {ElapsedMilliseconds}ms - {StatusCode}");
 
 
         public static IDisposable BeginRequestPipelineScope(ILogger logger, HttpRequestMessage request)
         {
-            return _beginRequestPipelineScope(logger, request.Method, request.RequestUri);
+            return LogBeginRequestPipelineScope(logger, request.Method, request.RequestUri);
         }
 
         public static void RequestPipelineStart(CustomLoggingOptions options, ILogger logger, HttpRequestMessage request)
         {
-            _requestPipelineStart(logger, request.Method, request.RequestUri, null);
+            LogRequestPipelineStart(logger, request.Method, request.RequestUri, null);
 
-            if (options.LogRequestHeader && logger.IsEnabled(LogLevel.Debug))
-                logger.Log(
-                           LogLevel.Debug,
-                           EventIds.RequestHeader,
+            if (options.LogRequestHeader && logger.IsEnabled(LogLevel.Information))
+                logger.Log(LogLevel.Information,
+                           LoggerEventIds.RequestHeader,
                            new HttpHeadersLogValue(Kind.Request, request.Headers, request.Content?.Headers),
                            null,
                            (state, ex) => state.ToString());
 
-            if (options.LogRequestBody && logger.IsEnabled(LogLevel.Debug))
-                logger.Log(
-                           LogLevel.Debug,
-                           EventIds.RequestContent,
+            if (options.LogRequestBody && logger.IsEnabled(LogLevel.Information))
+                logger.Log(LogLevel.Information,
+                           LoggerEventIds.RequestContent,
                            new HttpContentLogValue(Kind.Request, request.Content),
                            null,
                            (state, ex) => state.ToString());
@@ -95,25 +78,25 @@ public class CustomLoggingScopeHttpMessageHandler : DelegatingHandler
         {
             if (duration.TotalMilliseconds < options.SlowRequestLoggingThreshold)
             {
-                _requestPipelineEnd(logger, duration.TotalMilliseconds, response.StatusCode, null);
+                LogRequestPipelineEnd(logger, duration.TotalMilliseconds, response.StatusCode, null);
             }
             else
             {
-                _requestPipelineEndTooSlow(logger, duration.TotalMilliseconds, response.StatusCode, null);
+                LogRequestPipelineEndTooSlow(logger, duration.TotalMilliseconds, response.StatusCode, null);
             }
 
-            if (options.LogResponseHeader && logger.IsEnabled(LogLevel.Debug))
+            if (options.LogResponseHeader && logger.IsEnabled(LogLevel.Information))
                 logger.Log(
-                           LogLevel.Debug,
-                           EventIds.ResponseHeader,
+                           LogLevel.Information,
+                           LoggerEventIds.RequestHeader,
                            new HttpHeadersLogValue(Kind.Response, response.Headers, response.Content?.Headers),
                            null,
                            (state, ex) => state.ToString());
 
-            if (options.LogResponseBody && logger.IsEnabled(LogLevel.Debug))
+            if (options.LogResponseBody && logger.IsEnabled(LogLevel.Information))
                 logger.Log(
-                           LogLevel.Trace,
-                           EventIds.ResponseContent,
+                           LogLevel.Information,
+                           LoggerEventIds.ResponseContent,
                            new HttpContentLogValue(Kind.Response, response.Content),
                            null,
                            (state, ex) => state.ToString());

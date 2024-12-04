@@ -83,7 +83,7 @@ public class CustomLoggingHttpMessageHandler : DelegatingHandler
                            null,
                            (state, ex) => state.ToString());
 
-            if (options.LogResponseBody && logger.IsEnabled(LogLevel.Debug))
+            if (options.LogResponseBody && logger.IsEnabled(LogLevel.Information))
                 logger.Log(LogLevel.Information,
                            LoggerEventIds.ResponseContent,
                            new HttpContentLogValue(Kind.Response, response.Content),

@@ -45,9 +45,9 @@ public class CustomLoggingScopeHttpMessageHandler : DelegatingHandler
                                                                                                                                                          LoggerEventIds.RequestEnd,
                                                                                                                                                          "End processing HTTP request after {ElapsedMilliseconds}ms - {StatusCode}");
 
-        private static readonly Action<ILogger, double, HttpStatusCode, Exception?> LogRequestPipelineEndTooSlow = LoggerMessage.Define<double, HttpStatusCode>(LogLevel.Warning,
-                                                                                                                                                                LoggerEventIds.RequestEnd,
-                                                                                                                                                                "End processing  HTTP request too slow, elapsed: {ElapsedMilliseconds}ms - {StatusCode}");
+        private static readonly Action<ILogger, double, HttpStatusCode, HttpMethod?, Uri?, Exception?> LogRequestPipelineEndTooSlow = LoggerMessage.Define<double, HttpStatusCode, HttpMethod?, Uri?>(LogLevel.Warning,
+                                                                                                                                                                                                      LoggerEventIds.RequestEnd,
+                                                                                                                                                                                                      "End processing  HTTP request too slow, elapsed: {ElapsedMilliseconds}ms - {StatusCode} - {HttpMethod} {Uri}");
 
 
         public static IDisposable BeginRequestPipelineScope(ILogger logger, HttpRequestMessage request)
@@ -82,7 +82,7 @@ public class CustomLoggingScopeHttpMessageHandler : DelegatingHandler
             }
             else
             {
-                LogRequestPipelineEndTooSlow(logger, duration.TotalMilliseconds, response.StatusCode, null);
+                LogRequestPipelineEndTooSlow(logger, duration.TotalMilliseconds, response.StatusCode, response.RequestMessage?.Method, response.RequestMessage?.RequestUri, null);
             }
 
             if (options.LogResponseHeader && logger.IsEnabled(LogLevel.Information))

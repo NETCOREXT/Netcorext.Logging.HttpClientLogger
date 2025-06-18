@@ -42,9 +42,9 @@ public class CustomLoggingHttpMessageHandler : DelegatingHandler
                                                                                                                                                  LoggerEventIds.RequestEnd,
                                                                                                                                                  "Received HTTP response after {ElapsedMilliseconds}ms - {StatusCode}");
 
-        private static readonly Action<ILogger, double, HttpStatusCode, Exception?> LogRequestEndTooSlow = LoggerMessage.Define<double, HttpStatusCode>(LogLevel.Warning,
-                                                                                                                                                        LoggerEventIds.RequestEnd,
-                                                                                                                                                        "Received HTTP response too slow, elapsed: {ElapsedMilliseconds}ms - {StatusCode}");
+        private static readonly Action<ILogger, double, HttpStatusCode, HttpMethod?, Uri?, Exception?> LogRequestEndTooSlow = LoggerMessage.Define<double, HttpStatusCode, HttpMethod?, Uri?>(LogLevel.Warning,
+                                                                                                                                                                                             LoggerEventIds.RequestEnd,
+                                                                                                                                                                                             "Received HTTP response too slow, elapsed: {ElapsedMilliseconds}ms - {StatusCode} - {HttpMethod} {Uri}");
 
         public static void RequestStart(CustomLoggingOptions options, ILogger logger, HttpRequestMessage request)
         {
@@ -73,7 +73,7 @@ public class CustomLoggingHttpMessageHandler : DelegatingHandler
             }
             else
             {
-                LogRequestEndTooSlow(logger, duration.TotalMilliseconds, response.StatusCode, null);
+                LogRequestEndTooSlow(logger, duration.TotalMilliseconds, response.StatusCode, response.RequestMessage?.Method, response.RequestMessage?.RequestUri, null);
             }
 
             if (options.LogResponseHeader && logger.IsEnabled(LogLevel.Information))
